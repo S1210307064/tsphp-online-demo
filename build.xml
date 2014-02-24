@@ -1,0 +1,88 @@
+<project name="tsphp-online-demo" basedir="./" default="build">
+
+    <property environment="env"/>
+    <property name="proj.java.version" value="1.7"/>
+
+    <property file="${basedir}/ant/build.properties"/>
+    <import file="${basedir}/ant/personal-settings.xml" as="p"/>
+
+    <!-- setting source location -->
+    <property name="webinf" location="${basedir}/WEB-INF"/>
+    <property name="lib" location="${webinf}/lib"/>
+    <property name="src" location="${basedir}/src"/>
+    <property name="src.main" location="${src}"/>
+    <property name="src.test" location="${basedir}/test"/>
+
+    <!-- setting target locations -->
+    <property name="target" location="${basedir}/build"/>
+    <property name="classes" location="${target}/classes"/>
+
+    <!-- define runtime libraries -->
+    <path id="libset">
+        <fileset dir="${lib}">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+
+    <path id="servletset">
+        <fileset dir="${basedir}/servletlib">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+
+    <path id="compile.classpath">
+        <path refid="libset"/>
+        <path refid="servletset"/>
+    </path>
+
+    <!--====================================================================-->
+    <!-- info -->
+    <!--====================================================================-->
+    <target name="info" description="display runtime version info">
+        <echo message="=================================================" level="info"/>
+        <echo message=" Building: ${proj.name} v. ${proj.version}" level="info"/>
+        <echo message="=================================================" level="info"/>
+        <echo message=" Plattform    : ${os.name}" level="info"/>
+        <echo message=" Java Version : ${java.version} ${java.vendor}"
+              level="info"/>
+        <echo message=" ANT Version  : ${ant.version}" level="info"/>
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- Target: init -->
+    <!-- ================================================================== -->
+    <target name="init">
+        <mkdir dir="${classes}"/>
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- Target: compile -->
+    <!-- ================================================================== -->
+    <target name="compile" depends="init" >
+        <javac srcdir="${src.main}"
+               destdir="${classes}"
+               source="${proj.java.version}"
+               target="${proj.java.version}"
+               debug="yes"
+               includeAntRuntime="false"
+               fork="true">
+            <classpath refid="compile.classpath"/>
+        </javac>
+    </target>
+
+    <target name="build" depends="compile">
+        <war destfile="${webRoot}\${ant.project.name}.war" webxml="${webinf}/web.xml">
+            <fileset dir="${src.main}"/>
+            <fileset dir="${basedir}/rsrc"/>
+            <lib dir="${lib}"/>
+            <classes dir="${classes}"/>
+        </war>
+    </target>
+
+    <target name="clean">
+        <delete file="${webRoot}\${ant.project.name}.war" />
+        <delete dir="${webRoot}\${ant.project.name}" />
+        <delete dir="build" />
+    </target>
+
+</project>

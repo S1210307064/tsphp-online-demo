@@ -1,0 +1,8 @@
+build/*
+nbproject/*
+.idea/*
+out/*
+*.iml
+/atlassian-ide-plugin.xml
+/servletlib
+/ant/personal-settings.xml

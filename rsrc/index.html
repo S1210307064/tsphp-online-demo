@@ -1,0 +1,60 @@
+<html>
+<head><title>TSPHP Online Demo</title></head>
+<link rel="stylesheet" type="text/css" href="jquery.splitter.css">
+<link rel="stylesheet" type="text/css" href="style.css">
+<script type="text/javascript" src="jquery.js"></script>
+<script type="text/javascript" src="jquery.splitter-0.8.0.js"></script>
+<script type="text/javascript" src="demo.js"></script>
+<link rel="shortcut icon" href="favicon.ico">
+<body>
+<div class="intro">
+    <h1>TSPHP Online Demo</h1>
+
+    <div class="notice">
+        Write your <b>TSPHP code</b> in the text area on the <b>left</b> hand side and <b>click</b> on <b>"compile"</b>
+        or <b>press CTRL+G</b> once you are done. Information
+        about the compilation process will be shown at the bottom (including syntax and semantic errors). If no error
+        was detected then the corresponding PHP code will be shown in the text box on the right hand side.
+    </div>
+</div>
+<form method="post" id="frm" onsubmit="return compile()">
+    <div id="sub"><input type="submit" value="compile"/></div>
+    <div id="horizontal">
+        <div id="vertical">
+            <div class="container">
+                <span class="title">TSPHP</span>
+                <textarea id="tsphp" name="tsphp"></textarea>
+            </div>
+            <div class="container">
+                <span class="title">PHP</span>
+                <textarea id="php" name="php" readonly="readonly"></textarea>
+            </div>
+        </div>
+        <div class="console">
+            <span class="title">Console</span>
+            <textarea id="console" name="console"></textarea>
+        </div>
+    </div>
+</form>
+<script type="text/javascript">
+$(function($) {
+    $('#horizontal').split({orientation:'horizontal', limit:100, position:'70%'});
+    $('#vertical').split({orientation:'vertical', limit:150});
+    
+    $('#tsphp').keydown(function(event) {
+        var c = String.fromCharCode(event.which).toLowerCase();
+        if ((event.ctrlKey || event.metaKey) && c == 'g'){
+            compile();
+            event.preventDefault();
+            return false;
+        }
+        return true;
+    });
+    
+    
+});
+
+
+</script>
+</body>
+</html>
