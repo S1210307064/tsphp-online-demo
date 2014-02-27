@@ -1,35 +1,29 @@
 package ch.tsphp.onlinedemo;
 
-import antlr.RecognitionException;
-import ch.tsphp.HardCodedCompilerInitialiser;
-import ch.tsphp.common.ICompiler;
-import ch.tsphp.common.ICompilerListener;
-import ch.tsphp.common.IErrorLogger;
-import ch.tsphp.common.exceptions.TSPHPException;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.text.DateFormat;
-import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
-public class Main extends HttpServlet implements ICompilerListener, IErrorLogger
+public class Main extends HttpServlet
 {
-    private CountDownLatch compilerLatch;
+    private final int MAX_REQUESTS = 1;
+    private WorkerPool workerPool;
 
-    ICompiler compiler;
-    StringBuilder stringBuilder;
-    DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
+    private final Map<String, CompileResponseDto> compileResponses = new HashMap<String, CompileResponseDto>();
 
     public void init() throws ServletException {
-        compiler = new HardCodedCompilerInitialiser().create();
-        compiler.registerCompilerListener(this);
-        compiler.registerErrorLogger(this);
+        workerPool = new WorkerPool(compileResponses, MAX_REQUESTS, 4);
+    }
+
+    public void destroy() {
+        workerPool.shutdown();
     }
 
     public void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -39,21 +33,31 @@ public class Main extends HttpServlet implements ICompilerListener, IErrorLogger
         PrintWriter out = response.getWriter();
         String[] values = request.getParameterValues("tsphp");
         if (values != null && values.length == 1) {
-            stringBuilder = new StringBuilder();
-            compilerLatch = new CountDownLatch(1);
-            compiler.reset();
-            compiler.addCompilationUnit("web", values[0]);
-            compiler.compile();
-            try {
-                compilerLatch.await();
-                out.print("{");
-                out.print("\"console\":\"" + jsonEscape(stringBuilder.toString()) + "\"");
-                if (!compiler.hasFoundError()) {
-                    out.print(",\"php\":\"" + jsonEscape(compiler.getTranslations().get("web")) + "\"");
+            String tsphp = values[0].trim();
+            if (tsphp.length() != 0) {
+                String ticket = UUID.randomUUID().toString();
+                CountDownLatch latch = new CountDownLatch(1);
+                int size = workerPool.size();
+                if (workerPool.size() != MAX_REQUESTS) {
+                    workerPool.execute(new CompileRequestDto(ticket, values[0], latch));
+                    try {
+                        latch.await();
+                        CompileResponseDto dto = compileResponses.remove(ticket);
+                        out.print("{");
+                        out.print("\"console\":\"size: " + size + " - " + jsonEscape(dto.console) + "\"");
+                        if (!dto.hasFoundError) {
+                            out.print(",\"php\":\"" + jsonEscape(dto.php) + "\"");
+                        }
+                        out.print("}");
+                    } catch (InterruptedException e) {
+                        out.print("{\"error\": \"Exception occurred, compilation was interrupted, " +
+                                "please try again.\"}");
+                    }
+                } else {
+                    out.print("{\"error\": \"Too many requests at the moment. Please try it again in a moment.\"}");
                 }
-                out.print("}");
-            } catch (InterruptedException e) {
-                out.print("{\"error\": \"Exception occurred, compilation was interrupted, please try again.\"}");
+            } else {
+                out.print("{\"error\": \"None or more than one TSPHP code defined.\"}");
             }
         } else {
             out.print("{\"error\": \"None or more than one TSPHP code defined.\"}");
@@ -63,46 +67,8 @@ public class Main extends HttpServlet implements ICompilerListener, IErrorLogger
     private String jsonEscape(String json) {
         return json.replace("\\", "\\\\")
                 .replace("\"", "\\\"")
-                .replace("\t","\\t")
-                .replace("\n","\\n")
-                .replace("\r","");
-    }
-
-    @Override
-    public void afterParsingAndDefinitionPhaseCompleted() {
-        stringBuilder.append(dateFormat.format(new Date()) + ":  Parsing and Definition phase completed\n"
-                + "----------------------------------------------------------------------\n");
-    }
-
-    @Override
-    public void afterReferencePhaseCompleted() {
-        stringBuilder.append(dateFormat.format(new Date()) + ": Reference phase completed\n"
-                + "----------------------------------------------------------------------\n");
-    }
-
-    @Override
-    public void afterTypecheckingCompleted() {
-        stringBuilder.append(dateFormat.format(new Date()) + ": Type checking completed\n"
-                + "----------------------------------------------------------------------\n");
-    }
-
-    @Override
-    public void afterCompilingCompleted() {
-        stringBuilder.append(dateFormat.format(new Date()) + ": Compilation completed\n");
-        compilerLatch.countDown();
-    }
-
-    @Override
-    public void log(TSPHPException exception) {
-        stringBuilder.append(dateFormat.format(new Date()) + ": Unexpected exception occurred - "
-                + exception.getMessage() + "\n");
-        //TODO log unexpected exceptions
-        Throwable throwable = exception.getCause();
-        if (throwable != null && !(throwable instanceof RecognitionException)) {
-            StringWriter stringWriter = new StringWriter();
-            PrintWriter printWriter = new PrintWriter(stringWriter);
-            throwable.printStackTrace(printWriter);
-            stringBuilder.append(stringWriter.toString());
-        }
+                .replace("\t", "\\t")
+                .replace("\n", "\\n")
+                .replace("\r", "");
     }
 }
