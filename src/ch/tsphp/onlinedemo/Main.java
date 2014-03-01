@@ -13,7 +13,7 @@ import java.util.concurrent.CountDownLatch;
 
 public class Main extends HttpServlet
 {
-    private final int MAX_REQUESTS = 1;
+    private final int MAX_REQUESTS = 100;
     private WorkerPool workerPool;
 
     private final Map<String, CompileResponseDto> compileResponses = new HashMap<String, CompileResponseDto>();
@@ -37,14 +37,13 @@ public class Main extends HttpServlet
             if (tsphp.length() != 0) {
                 String ticket = UUID.randomUUID().toString();
                 CountDownLatch latch = new CountDownLatch(1);
-                int size = workerPool.size();
                 if (workerPool.size() != MAX_REQUESTS) {
                     workerPool.execute(new CompileRequestDto(ticket, values[0], latch));
                     try {
                         latch.await();
                         CompileResponseDto dto = compileResponses.remove(ticket);
                         out.print("{");
-                        out.print("\"console\":\"size: " + size + " - " + jsonEscape(dto.console) + "\"");
+                        out.print("\"console\":\"" + jsonEscape(dto.console) + "\"");
                         if (!dto.hasFoundError) {
                             out.print(",\"php\":\"" + jsonEscape(dto.php) + "\"");
                         }

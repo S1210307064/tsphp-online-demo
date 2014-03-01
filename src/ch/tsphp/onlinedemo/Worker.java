@@ -21,7 +21,7 @@ public class Worker implements ICompilerListener, IErrorLogger
     private final Map<String, CompileResponseDto> compileResponses;
     private CountDownLatch compilerLatch;
     private ICompiler compiler;
-    private StringBuilder stringBuilder;
+    private StringBuffer stringBuffer;
     private final DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
     private ExecutorService executorService;
 
@@ -39,19 +39,18 @@ public class Worker implements ICompilerListener, IErrorLogger
     }
 
     public void compile(CompileRequestDto dto) {
-        stringBuilder = new StringBuilder();
+        stringBuffer = new StringBuffer();
         compilerLatch = new CountDownLatch(1);
         compiler.reset();
         compiler.addCompilationUnit("web", dto.tsphp);
         compiler.compile();
-
         try {
             compilerLatch.await();
             if (!compiler.hasFoundError()) {
                 compileResponses.put(dto.ticket, new CompileResponseDto(false, compiler.getTranslations().get("web"),
-                        stringBuilder.toString()));
+                        stringBuffer.toString()));
             } else {
-                compileResponses.put(dto.ticket, new CompileResponseDto(true, "", stringBuilder.toString()));
+                compileResponses.put(dto.ticket, new CompileResponseDto(true, "", stringBuffer.toString()));
             }
         } catch (InterruptedException e) {
             compileResponses.put(dto.ticket, new CompileResponseDto(true, "", "Unexpected exception occurred, " +
@@ -62,39 +61,38 @@ public class Worker implements ICompilerListener, IErrorLogger
 
     @Override
     public void afterParsingAndDefinitionPhaseCompleted() {
-        stringBuilder.append(dateFormat.format(new Date())).append(":  Parsing and Definition phase completed\n");
-        stringBuilder.append("----------------------------------------------------------------------\n");
+        stringBuffer.append(dateFormat.format(new Date())).append(": Parsing and Definition phase completed\n");
+        stringBuffer.append("----------------------------------------------------------------------\n");
     }
 
     @Override
     public void afterReferencePhaseCompleted() {
-        stringBuilder.append(dateFormat.format(new Date())).append(": Reference phase completed\n");
-        stringBuilder.append("----------------------------------------------------------------------\n");
+        stringBuffer.append(dateFormat.format(new Date())).append(": Reference phase completed\n");
+        stringBuffer.append("----------------------------------------------------------------------\n");
     }
 
     @Override
     public void afterTypecheckingCompleted() {
-        stringBuilder.append(dateFormat.format(new Date())).append(": Type checking completed\n");
-        stringBuilder.append("----------------------------------------------------------------------\n");
+        stringBuffer.append(dateFormat.format(new Date())).append(": Type checking completed\n");
+        stringBuffer.append("----------------------------------------------------------------------\n");
     }
 
     @Override
     public void afterCompilingCompleted() {
-        stringBuilder.append(dateFormat.format(new Date())).append(": Compilation completed\n");
+        stringBuffer.append(dateFormat.format(new Date())).append(": Compilation completed\n");
         compilerLatch.countDown();
     }
 
     @Override
     public void log(TSPHPException exception) {
-        stringBuilder.append(dateFormat.format(new Date())).append(": Unexpected exception occurred - ")
-                .append(exception.getMessage()).append("\n");
+        stringBuffer.append(dateFormat.format(new Date())).append(": ").append(exception.getMessage()).append("\n");
         //TODO log unexpected exceptions
         Throwable throwable = exception.getCause();
         if (throwable != null && !(throwable instanceof RecognitionException)) {
             StringWriter stringWriter = new StringWriter();
             PrintWriter printWriter = new PrintWriter(stringWriter);
             throwable.printStackTrace(printWriter);
-            stringBuilder.append(stringWriter.toString());
+            stringBuffer.append(stringWriter.toString());
         }
     }
 }
