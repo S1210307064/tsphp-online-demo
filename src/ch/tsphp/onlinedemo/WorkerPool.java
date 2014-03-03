@@ -1,5 +1,6 @@
 package ch.tsphp.onlinedemo;
 
+import java.io.File;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Map;
@@ -12,11 +13,21 @@ public class WorkerPool
     private final Map<String, CompileResponseDto> compileResponses;
     private final BlockingQueue<CompileRequestDto> blockingQueue;
     private final Collection<Worker> workers = new ArrayDeque<Worker>();
+    private final File requestsLog;
+    private final File exceptionsLog;
+
     private boolean busy = true;
 
     public WorkerPool(
-            Map<String, CompileResponseDto> theCompileResponses, int maximumRequests, int numbersOfWorkers) {
+            Map<String, CompileResponseDto> theCompileResponses,
+            int maximumRequests,
+            int numbersOfWorkers,
+            File theRequestsLog,
+            File theExceptionsLog) {
         compileResponses = theCompileResponses;
+        requestsLog = theRequestsLog;
+        exceptionsLog = theExceptionsLog;
+
         blockingQueue = new ArrayBlockingQueue<CompileRequestDto>(maximumRequests);
 
         for (int i = 0; i < numbersOfWorkers; ++i) {
@@ -28,7 +39,7 @@ public class WorkerPool
         Thread runLoop = new Thread()
         {
             public void run() {
-                Worker worker = new Worker(compileResponses);
+                Worker worker = new Worker(compileResponses, requestsLog, exceptionsLog);
                 workers.add(worker);
                 while (busy) {
                     try {

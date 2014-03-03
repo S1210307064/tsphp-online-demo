@@ -7,6 +7,9 @@ import ch.tsphp.common.ICompilerListener;
 import ch.tsphp.common.IErrorLogger;
 import ch.tsphp.common.exceptions.TSPHPException;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DateFormat;
@@ -19,14 +22,24 @@ import java.util.concurrent.Executors;
 public class Worker implements ICompilerListener, IErrorLogger
 {
     private final Map<String, CompileResponseDto> compileResponses;
-    private CountDownLatch compilerLatch;
-    private ICompiler compiler;
-    private StringBuffer stringBuffer;
+    private final ICompiler compiler;
     private final DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
-    private ExecutorService executorService;
+    private final ExecutorService executorService;
 
-    public Worker(Map<String, CompileResponseDto> theCompileResponses) {
+    private final File requestsLog;
+    private final File exceptionsLog;
+    private static Object logLock = new Object();
+    private static Object exceptionLock = new Object();
+
+    private CountDownLatch compilerLatch;
+    private StringBuilder stringBuilder;
+    private String tsphp;
+
+
+    public Worker(Map<String, CompileResponseDto> theCompileResponses, File theRequestsLog, File theExceptionsLog) {
         compileResponses = theCompileResponses;
+        requestsLog = theRequestsLog;
+        exceptionsLog = theExceptionsLog;
 
         executorService = Executors.newSingleThreadExecutor();
         compiler = new HardCodedCompilerInitialiser().create(executorService);
@@ -39,18 +52,20 @@ public class Worker implements ICompilerListener, IErrorLogger
     }
 
     public void compile(CompileRequestDto dto) {
-        stringBuffer = new StringBuffer();
+        stringBuilder = new StringBuilder();
         compilerLatch = new CountDownLatch(1);
         compiler.reset();
-        compiler.addCompilationUnit("web", dto.tsphp);
+        tsphp = dto.tsphp;
+        compiler.addCompilationUnit("web", tsphp);
+        writeToFile(logLock, requestsLog, tsphp);
         compiler.compile();
         try {
             compilerLatch.await();
             if (!compiler.hasFoundError()) {
                 compileResponses.put(dto.ticket, new CompileResponseDto(false, compiler.getTranslations().get("web"),
-                        stringBuffer.toString()));
+                        stringBuilder.toString()));
             } else {
-                compileResponses.put(dto.ticket, new CompileResponseDto(true, "", stringBuffer.toString()));
+                compileResponses.put(dto.ticket, new CompileResponseDto(true, "", stringBuilder.toString()));
             }
         } catch (InterruptedException e) {
             compileResponses.put(dto.ticket, new CompileResponseDto(true, "", "Unexpected exception occurred, " +
@@ -59,40 +74,58 @@ public class Worker implements ICompilerListener, IErrorLogger
         dto.latch.countDown();
     }
 
+    private void writeToFile(Object lock, File file, String txt) {
+        synchronized (lock) {
+            try {
+                FileWriter writer = new FileWriter(file, true);
+                writer.append(dateFormat.format(new Date()))
+                        .append(" ----------------------------------------------------------------------\n")
+                        .append(txt)
+                        .append("\n");
+                writer.close();
+            } catch (IOException e) {
+                //that's bad but we don't care
+            }
+        }
+    }
+
     @Override
     public void afterParsingAndDefinitionPhaseCompleted() {
-        stringBuffer.append(dateFormat.format(new Date())).append(": Parsing and Definition phase completed\n");
-        stringBuffer.append("----------------------------------------------------------------------\n");
+        stringBuilder.append(dateFormat.format(new Date())).append(": Parsing and Definition phase completed\n");
+        stringBuilder.append("----------------------------------------------------------------------\n");
     }
 
     @Override
     public void afterReferencePhaseCompleted() {
-        stringBuffer.append(dateFormat.format(new Date())).append(": Reference phase completed\n");
-        stringBuffer.append("----------------------------------------------------------------------\n");
+        stringBuilder.append(dateFormat.format(new Date())).append(": Reference phase completed\n");
+        stringBuilder.append("----------------------------------------------------------------------\n");
     }
 
     @Override
     public void afterTypecheckingCompleted() {
-        stringBuffer.append(dateFormat.format(new Date())).append(": Type checking completed\n");
-        stringBuffer.append("----------------------------------------------------------------------\n");
+        stringBuilder.append(dateFormat.format(new Date())).append(": Type checking completed\n");
+        stringBuilder.append("----------------------------------------------------------------------\n");
     }
 
     @Override
     public void afterCompilingCompleted() {
-        stringBuffer.append(dateFormat.format(new Date())).append(": Compilation completed\n");
+        stringBuilder.append(dateFormat.format(new Date())).append(": Compilation completed\n");
         compilerLatch.countDown();
     }
 
     @Override
     public void log(TSPHPException exception) {
-        stringBuffer.append(dateFormat.format(new Date())).append(": ").append(exception.getMessage()).append("\n");
-        //TODO log unexpected exceptions
+        stringBuilder.append(dateFormat.format(new Date())).append(": ").append(exception.getMessage()).append("\n");
         Throwable throwable = exception.getCause();
         if (throwable != null && !(throwable instanceof RecognitionException)) {
             StringWriter stringWriter = new StringWriter();
             PrintWriter printWriter = new PrintWriter(stringWriter);
             throwable.printStackTrace(printWriter);
-            stringBuffer.append(stringWriter.toString());
+            String txt = tsphp
+                    + "\n------------------------------------------------------------------------------------------\n"
+                    + stringWriter.toString();
+            writeToFile(exceptionLock, exceptionsLog, txt);
+            stringBuilder.append(stringWriter.toString());
         }
     }
 }
