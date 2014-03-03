@@ -1,88 +1,66 @@
 <project name="tsphp-online-demo" basedir="./" default="build">
 
-    <property environment="env"/>
-    <property name="proj.java.version" value="1.7"/>
+    <!-- additional jar for libset, should not be deployed though -->
+    <property name="libset.addon" location="${basedir}/lib/dev/servlet-api.jar"/>
 
-    <property file="${basedir}/ant/build.properties"/>
+    <import file="${basedir}/ant/build-common.xml" as="common"/>
+    <import file="${basedir}/ant/copyCommon.xml" as="cp"/>
+    <import file="${basedir}/ant/copyParserTypeCheckerTranslator.xml" as="cp"/>
+
     <import file="${basedir}/ant/personal-settings.xml" as="p"/>
+    <property file="${basedir}/ant/build.properties"/>
+    <property name="rsrc" location="${basedir}/rsrc"/>
 
-    <!-- setting source location -->
-    <property name="webinf" location="${basedir}/WEB-INF"/>
-    <property name="lib" location="${webinf}/lib"/>
-    <property name="src" location="${basedir}/src"/>
-    <property name="src.main" location="${src}"/>
-    <property name="src.test" location="${basedir}/test"/>
+    <property name="compiler.jar" location="${basedir}/../tsphp/build/lib"/>
 
-    <!-- setting target locations -->
-    <property name="target" location="${basedir}/build"/>
-    <property name="classes" location="${target}/classes"/>
-
-    <!-- define runtime libraries -->
-    <path id="libset">
-        <fileset dir="${lib}">
-            <include name="*.jar"/>
-        </fileset>
-    </path>
-
-    <path id="servletset">
-        <fileset dir="${basedir}/servletlib">
-            <include name="*.jar"/>
-        </fileset>
-    </path>
-
-    <path id="compile.classpath">
-        <path refid="libset"/>
-        <path refid="servletset"/>
-    </path>
-
-    <!--====================================================================-->
-    <!-- info -->
-    <!--====================================================================-->
-    <target name="info" description="display runtime version info">
-        <echo message="=================================================" level="info"/>
-        <echo message=" Building: ${proj.name} v. ${proj.version}" level="info"/>
-        <echo message="=================================================" level="info"/>
-        <echo message=" Plattform    : ${os.name}" level="info"/>
-        <echo message=" Java Version : ${java.version} ${java.vendor}"
-              level="info"/>
-        <echo message=" ANT Version  : ${ant.version}" level="info"/>
-    </target>
 
     <!-- ================================================================== -->
-    <!-- Target: init -->
+    <!-- Specialised Target: jar - create a war instead of a jar-->
     <!-- ================================================================== -->
-    <target name="init">
-        <mkdir dir="${classes}"/>
-    </target>
-
-    <!-- ================================================================== -->
-    <!-- Target: compile -->
-    <!-- ================================================================== -->
-    <target name="compile" depends="init" >
-        <javac srcdir="${src.main}"
-               destdir="${classes}"
-               source="${proj.java.version}"
-               target="${proj.java.version}"
-               debug="yes"
-               includeAntRuntime="false"
-               fork="true">
-            <classpath refid="compile.classpath"/>
-        </javac>
-    </target>
-
-    <target name="build" depends="compile">
-        <war destfile="${webRoot}\${ant.project.name}.war" webxml="${webinf}/web.xml">
+    <target name="jar" depends="compile" description="create war">
+        <mkdir dir="${target}/lib"/>
+        <war destfile="${target}/lib/${ant.project.name}.war" webxml="${rsrc}/web.xml">
             <fileset dir="${src.main}"/>
-            <fileset dir="${basedir}/rsrc"/>
+            <fileset dir="${rsrc}"/>
             <lib dir="${lib}"/>
             <classes dir="${classes}"/>
         </war>
     </target>
 
-    <target name="clean">
-        <delete file="${webRoot}\${ant.project.name}.war" />
-        <delete dir="${webRoot}\${ant.project.name}" />
-        <delete dir="build" />
+    <!-- ================================================================== -->
+    <!-- Specialised Target: dist.bin -->
+    <!-- ================================================================== -->
+    <target name="dist.bin">
+        <zip destfile="${target}/dist/${distname}-bin.zip">
+            <zipfileset dir="${basedir}" prefix="${distname}">
+                <include name="README.md"/>
+                <include name="LICENSE"/>
+            </zipfileset>
+            <zipfileset file="${target}/lib/${ant.project.name}.war"/>
+            <zipfileset dir="${javadoc}" prefix="${distname}/doc">
+                <include name="**/*.*"/>
+            </zipfileset>
+        </zip>
+    </target>
+
+    <target name="deploy" depends="clean, jar, clean.deploy">
+        <copy file="${target}/lib/${ant.project.name}.war" tofile="${webRoot}/${ant.project.name}.war"/>
+    </target>
+
+    <target name="clean.deploy" description="clean up">
+        <delete includeemptydirs="true" quiet="true">
+            <fileset dir="${webRoot}\${ant.project.name}"/>
+            <fileset file="${webRoot}\${ant.project.name}.war"/>
+        </delete>
+    </target>
+
+    <target name="cp.all"
+            depends="cp.compiler, cp.translator, cp.typechecker, cp.parser, cp.common"
+            description="copy common, parser and typechecker to the lib folder">
+    </target>
+
+    <target name="cp.compiler" description="copies the compiler component to the lib folder">
+        <copyComponent dir="${compiler.jar}" includes="TSPHP-*.jar"/>
     </target>
 
 </project>
