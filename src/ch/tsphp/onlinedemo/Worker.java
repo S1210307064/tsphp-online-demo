@@ -1,10 +1,8 @@
 package ch.tsphp.onlinedemo;
 
 import antlr.RecognitionException;
-import ch.tsphp.HardCodedCompilerInitialiser;
+import ch.tsphp.ICompilerInitialiser;
 import ch.tsphp.common.ICompiler;
-import ch.tsphp.common.ICompilerListener;
-import ch.tsphp.common.IErrorLogger;
 import ch.tsphp.common.exceptions.TSPHPException;
 
 import java.io.File;
@@ -18,8 +16,9 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
-public class Worker implements ICompilerListener, IErrorLogger
+public class Worker implements IWorker
 {
     private final Map<String, CompileResponseDto> compileResponses;
     private final ICompiler compiler;
@@ -28,63 +27,81 @@ public class Worker implements ICompilerListener, IErrorLogger
 
     private final File requestsLog;
     private final File exceptionsLog;
-    private static Object logLock = new Object();
-    private static Object exceptionLock = new Object();
+    private final static Object logLock = new Object();
+    private final static Object exceptionLock = new Object();
 
     private CountDownLatch compilerLatch;
-    private StringBuilder stringBuilder;
+    private StringBuilder stringBuilder = new StringBuilder();
+    ;
     private String tsphp;
+    private boolean busy = true;
 
-
-    public Worker(Map<String, CompileResponseDto> theCompileResponses, File theRequestsLog, File theExceptionsLog) {
+    public Worker(ICompilerInitialiser compilerInitialiser, Map<String, CompileResponseDto> theCompileResponses,
+            File theRequestsLog, File theExceptionsLog) {
         compileResponses = theCompileResponses;
         requestsLog = theRequestsLog;
         exceptionsLog = theExceptionsLog;
 
         executorService = Executors.newSingleThreadExecutor();
-        compiler = new HardCodedCompilerInitialiser().create(executorService);
+        compiler = compilerInitialiser.create(executorService);
         compiler.registerCompilerListener(this);
         compiler.registerErrorLogger(this);
     }
 
+    @Override
     public void shutdown() {
+        busy = false;
         executorService.shutdown();
     }
 
+    @Override
     public void compile(CompileRequestDto dto) {
-        stringBuilder = new StringBuilder();
-        compilerLatch = new CountDownLatch(1);
-        compiler.reset();
-        tsphp = dto.tsphp;
-        compiler.addCompilationUnit("web", tsphp);
-        writeToFile(logLock, requestsLog, tsphp);
-        compiler.compile();
         try {
-            compilerLatch.await();
-            if (!compiler.hasFoundError()) {
-                compileResponses.put(dto.ticket, new CompileResponseDto(false, compiler.getTranslations().get("web"),
-                        stringBuilder.toString()));
-            } else {
-                compileResponses.put(dto.ticket, new CompileResponseDto(true, "", stringBuilder.toString()));
+            stringBuilder = new StringBuilder();
+            compilerLatch = new CountDownLatch(1);
+            compiler.reset();
+            tsphp = dto.tsphp;
+            compiler.addCompilationUnit("web", tsphp);
+            writeToFile(logLock, requestsLog, tsphp);
+            compiler.compile();
+            try {
+                compilerLatch.await();
+                if (!compiler.hasFoundError()) {
+                    compileResponses.put(dto.ticket, new CompileResponseDto(false,
+                            compiler.getTranslations().get("web"),
+                            stringBuilder.toString()));
+                } else {
+                    compileResponses.put(dto.ticket, new CompileResponseDto(true, "", stringBuilder.toString()));
+                }
+            } catch (InterruptedException e) {
+                compileResponses.put(dto.ticket, new CompileResponseDto(true, "", "Unexpected exception occurred, " +
+                        "compilation was interrupted, please try again."));
             }
-        } catch (InterruptedException e) {
-            compileResponses.put(dto.ticket, new CompileResponseDto(true, "", "Unexpected exception occurred, " +
-                    "compilation was interrupted, please try again."));
+        } catch (RejectedExecutionException ex) {
+            //if shutdown has not yet occurred it is an error, otherwise it is fine
+            if (busy) {
+                String txt = tsphp
+                        + "\n---------------------------------------------------------------------------------------\n"
+                        + "Unexpected shutdown";
+                writeToFile(exceptionLock, exceptionsLog, txt);
+            }
         }
         dto.latch.countDown();
     }
 
     private void writeToFile(Object lock, File file, String txt) {
         synchronized (lock) {
-            try {
-                FileWriter writer = new FileWriter(file, true);
-                writer.append(dateFormat.format(new Date()))
-                        .append(" ----------------------------------------------------------------------\n")
-                        .append(txt)
-                        .append("\n");
-                writer.close();
-            } catch (IOException e) {
-                //that's bad but we don't care
+            if (file.exists()) {
+                try {
+                    FileWriter writer = new FileWriter(file, true);
+                    writer.append(dateFormat.format(new Date()))
+                            .append(" ----------------------------------------------------------------------\n")
+                            .append(txt)
+                            .append("\n");
+                    writer.close();
+                } catch (IOException e) {
+                    //that's bad but we don't care
+                }
             }
         }
     }

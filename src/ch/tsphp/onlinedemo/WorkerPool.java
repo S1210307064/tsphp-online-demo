@@ -1,35 +1,35 @@
 package ch.tsphp.onlinedemo;
 
-import java.io.File;
-import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 
-public class WorkerPool
+public class WorkerPool implements IWorkerPool
 {
     private final Map<String, CompileResponseDto> compileResponses;
     private final BlockingQueue<CompileRequestDto> blockingQueue;
-    private final Collection<Worker> workers = new ArrayDeque<Worker>();
-    private final File requestsLog;
-    private final File exceptionsLog;
+    private final Collection<IWorker> workers = new CopyOnWriteArrayList<IWorker>();
+    private final IWorkerFactory workerFactory;
+    private final int numbersOfWorkers;
 
-    private boolean busy = true;
+    private boolean busy = false;
 
     public WorkerPool(
+            IWorkerFactory theWorkerFactory,
+            BlockingQueue<CompileRequestDto> theBlockingQueue,
             Map<String, CompileResponseDto> theCompileResponses,
-            int maximumRequests,
-            int numbersOfWorkers,
-            File theRequestsLog,
-            File theExceptionsLog) {
+            int theNumbersOfWorkers) {
+        workerFactory = theWorkerFactory;
+        blockingQueue = theBlockingQueue;
         compileResponses = theCompileResponses;
-        requestsLog = theRequestsLog;
-        exceptionsLog = theExceptionsLog;
+        numbersOfWorkers = theNumbersOfWorkers;
+    }
 
-        blockingQueue = new ArrayBlockingQueue<CompileRequestDto>(maximumRequests);
-
+    @Override
+    public void start() {
+        busy = true;
         for (int i = 0; i < numbersOfWorkers; ++i) {
             activateWorker();
         }
@@ -39,7 +39,7 @@ public class WorkerPool
         Thread runLoop = new Thread()
         {
             public void run() {
-                Worker worker = new Worker(compileResponses, requestsLog, exceptionsLog);
+                IWorker worker = workerFactory.create(compileResponses);
                 workers.add(worker);
                 while (busy) {
                     try {
@@ -54,25 +54,32 @@ public class WorkerPool
         runLoop.start();
     }
 
+    @Override
     public void execute(CompileRequestDto dto) {
         try {
             blockingQueue.put(dto);
         } catch (InterruptedException e) {
-            compileResponses.put(dto.ticket,new CompileResponseDto(true,"","Unexpected exception occurred, " +
+            compileResponses.put(dto.ticket, new CompileResponseDto(true, "", "Unexpected exception occurred, " +
                     "compilation was interrupted, please try again."));
             dto.latch.countDown();
         }
     }
 
-    public int size() {
+    @Override
+    public int numberOfPendingRequests() {
         return blockingQueue.size();
     }
 
+    @Override
     public void shutdown() {
-        busy = false;
-        for (Worker worker : workers) {
-            worker.shutdown();
-            execute(new CompileRequestDto("shutdown", "", new CountDownLatch(1)));
+        if (busy) {
+            busy = false;
+            for (IWorker worker : workers) {
+                worker.shutdown();
+                execute(new CompileRequestDto("shutdown", "", new CountDownLatch(1)));
+            }
+        } else {
+            throw new IllegalStateException("cannot shutdown when WorkerPool was not started");
         }
     }
 }
