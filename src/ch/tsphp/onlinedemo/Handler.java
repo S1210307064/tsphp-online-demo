@@ -10,11 +10,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,17 +26,16 @@ import java.util.concurrent.CountDownLatch;
 
 public class Handler
 {
+    private static final int MAX_REQUESTS = 100;
+    private static final int NUMBER_OF_WORKERS = 4;
 
-    private final int MAX_REQUESTS = 100;
     private final IWorkerPool workerPool;
-
     private final Map<String, CompileResponseDto> compileResponses = new HashMap<String, CompileResponseDto>();
     private final File counterLog;
     private final Object counterLock = new Object();
     private final Properties emailProperties;
 
     public Handler(IWorkerPoolFactory workerPoolFactory, Properties theEmailProperties, File theCounterLog) {
-        final int NUMBER_OF_WORKERS = 4;
         workerPool = workerPoolFactory.create(MAX_REQUESTS, compileResponses, NUMBER_OF_WORKERS);
         workerPool.start();
 
@@ -56,21 +57,7 @@ public class Handler
                 String ticket = UUID.randomUUID().toString();
                 CountDownLatch latch = new CountDownLatch(1);
                 if (workerPool.numberOfPendingRequests() < MAX_REQUESTS) {
-                    workerPool.execute(new CompileRequestDto(ticket, values[0], latch));
-                    incrementCounter();
-                    try {
-                        latch.await();
-                        CompileResponseDto dto = compileResponses.remove(ticket);
-                        out.print("{");
-                        out.print("\"console\":\"" + jsonEscape(dto.console) + "\"");
-                        if (!dto.hasFoundError) {
-                            out.print(",\"php\":\"" + jsonEscape(dto.php) + "\"");
-                        }
-                        out.print("}");
-                    } catch (InterruptedException e) {
-                        out.print("{\"error\": \"Exception occurred, compilation was interrupted, " +
-                                "please try again.\"}");
-                    }
+                    execute(out, latch, new CompileRequestDto(ticket, tsphp, latch));
                 } else {
                     out.print("{\"error\": \"Too many requests at the moment. Please try it again in a moment.\"}");
                 }
@@ -82,27 +69,81 @@ public class Handler
         }
     }
 
+    private void execute(PrintWriter out, CountDownLatch latch, CompileRequestDto requestDto) {
+        workerPool.execute(requestDto);
+        incrementCounter();
+        try {
+            latch.await();
+            CompileResponseDto responseDto = compileResponses.remove(requestDto.ticket);
+            out.print("{");
+            out.print("\"console\":\"" + jsonEscape(responseDto.console) + "\"");
+            if (!responseDto.hasFoundError) {
+                out.print(",\"php\":\"" + jsonEscape(responseDto.php) + "\"");
+            }
+            out.print("}");
+        } catch (InterruptedException e) {
+            out.print("{\"error\": \"Exception occurred, compilation was interrupted, "
+                    + "please try again.\"}");
+        }
+    }
+
     private void incrementCounter() {
         Integer counter = null;
         synchronized (counterLock) {
             if (counterLog.exists()) {
-                try {
-                    BufferedReader reader = new BufferedReader(new FileReader(counterLog));
-                    counter = Integer.parseInt(reader.readLine());
+                counter = readCounter();
+                if (counter != null) {
                     ++counter;
-                    reader.close();
-                    FileWriter writer = new FileWriter(counterLog);
-                    writer.write(counter.toString());
-                    writer.close();
-                } catch (FileNotFoundException e) {
-                    //That's a pity but we don't care
-                } catch (IOException e) {
-                    //That's a pity but we don't care
+                    writeCounter(counter);
                 }
             }
         }
-        if (counter != null && counter % 100 == 0) {
+
+        if (counter != null && counter % MAX_REQUESTS == 0) {
             notifyPerEmail(counter);
+        }
+
+    }
+
+    private Integer readCounter() {
+        Integer counter = null;
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(
+                    new InputStreamReader(new FileInputStream(counterLog), StandardCharsets.ISO_8859_1));
+            counter = Integer.parseInt(reader.readLine());
+        } catch (NumberFormatException e) {
+            //That's a pity but we don't care
+        } catch (IOException e) {
+            //That's a pity but we don't care
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    //that's fine
+                }
+            }
+        }
+        return counter;
+    }
+
+    private void writeCounter(Integer counter) {
+        OutputStreamWriter writer = null;
+        try {
+            writer = new OutputStreamWriter(new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
+            writer.write(counter.toString());
+            writer.close();
+        } catch (IOException e) {
+            //That's a pity but we don't care
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IOException e2) {
+                    //that's fine
+                }
+            }
         }
     }
 

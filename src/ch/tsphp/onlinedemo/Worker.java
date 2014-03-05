@@ -6,10 +6,12 @@ import ch.tsphp.common.ICompiler;
 import ch.tsphp.common.exceptions.TSPHPException;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.Map;
@@ -20,6 +22,9 @@ import java.util.concurrent.RejectedExecutionException;
 
 public class Worker implements IWorker
 {
+    private static final Object LOG_LOCK = new Object();
+    private static final Object EXCEPTION_LOCK = new Object();
+
     private final Map<String, CompileResponseDto> compileResponses;
     private final ICompiler compiler;
     private final DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
@@ -27,12 +32,10 @@ public class Worker implements IWorker
 
     private final File requestsLog;
     private final File exceptionsLog;
-    private final static Object logLock = new Object();
-    private final static Object exceptionLock = new Object();
 
     private CountDownLatch compilerLatch;
     private StringBuilder stringBuilder = new StringBuilder();
-    ;
+
     private String tsphp;
     private boolean busy = true;
 
@@ -62,7 +65,7 @@ public class Worker implements IWorker
             compiler.reset();
             tsphp = dto.tsphp;
             compiler.addCompilationUnit("web", tsphp);
-            writeToFile(logLock, requestsLog, tsphp);
+            writeToFile(LOG_LOCK, requestsLog, tsphp);
             compiler.compile();
             try {
                 compilerLatch.await();
@@ -74,8 +77,8 @@ public class Worker implements IWorker
                     compileResponses.put(dto.ticket, new CompileResponseDto(true, "", stringBuilder.toString()));
                 }
             } catch (InterruptedException e) {
-                compileResponses.put(dto.ticket, new CompileResponseDto(true, "", "Unexpected exception occurred, " +
-                        "compilation was interrupted, please try again."));
+                compileResponses.put(dto.ticket, new CompileResponseDto(true, "", "Unexpected exception occurred, "
+                        + "compilation was interrupted, please try again."));
             }
         } catch (RejectedExecutionException ex) {
             //if shutdown has not yet occurred it is an error, otherwise it is fine
@@ -83,7 +86,7 @@ public class Worker implements IWorker
                 String txt = tsphp
                         + "\n---------------------------------------------------------------------------------------\n"
                         + "Unexpected shutdown";
-                writeToFile(exceptionLock, exceptionsLog, txt);
+                writeToFile(EXCEPTION_LOCK, exceptionsLog, txt);
             }
         }
         dto.latch.countDown();
@@ -92,8 +95,9 @@ public class Worker implements IWorker
     private void writeToFile(Object lock, File file, String txt) {
         synchronized (lock) {
             if (file.exists()) {
+                OutputStreamWriter writer = null;
                 try {
-                    FileWriter writer = new FileWriter(file, true);
+                    writer = new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.ISO_8859_1);
                     writer.append(dateFormat.format(new Date()))
                             .append(" ----------------------------------------------------------------------\n")
                             .append(txt)
@@ -101,6 +105,13 @@ public class Worker implements IWorker
                     writer.close();
                 } catch (IOException e) {
                     //that's bad but we don't care
+                    if (writer != null) {
+                        try {
+                            writer.close();
+                        } catch (IOException e1) {
+                            //that's fine
+                        }
+                    }
                 }
             }
         }
@@ -141,7 +152,7 @@ public class Worker implements IWorker
             String txt = tsphp
                     + "\n------------------------------------------------------------------------------------------\n"
                     + stringWriter.toString();
-            writeToFile(exceptionLock, exceptionsLog, txt);
+            writeToFile(EXCEPTION_LOCK, exceptionsLog, txt);
             stringBuilder.append(stringWriter.toString());
         }
     }

@@ -18,6 +18,6 @@ public class WorkerFactory implements IWorkerFactory
 
     @Override
     public IWorker create(Map<String, CompileResponseDto> theCompileResponses) {
-        return new Worker( new HardCodedCompilerInitialiser(), theCompileResponses, requestsLog, exceptionsLog);
+        return new Worker(new HardCodedCompilerInitialiser(), theCompileResponses, requestsLog, exceptionsLog);
     }
 }

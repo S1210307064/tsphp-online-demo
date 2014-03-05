@@ -2,7 +2,7 @@ package ch.tsphp.onlinedemo;
 
 public class CompileResponseDto
 {
-    public boolean hasFoundError=false;
+    public boolean hasFoundError = false;
     public String php;
     public String console;
 

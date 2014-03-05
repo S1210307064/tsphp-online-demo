@@ -59,8 +59,8 @@ public class WorkerPool implements IWorkerPool
         try {
             blockingQueue.put(dto);
         } catch (InterruptedException e) {
-            compileResponses.put(dto.ticket, new CompileResponseDto(true, "", "Unexpected exception occurred, " +
-                    "compilation was interrupted, please try again."));
+            compileResponses.put(dto.ticket, new CompileResponseDto(true, "", "Unexpected exception occurred, "
+                    + "compilation was interrupted, please try again."));
             dto.latch.countDown();
         }
     }
