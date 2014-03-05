@@ -131,18 +131,11 @@ public class HandlerTest
         return createHandler(workerPoolFactory);
     }
 
-    protected Handler createHandler(File counterLog) {
-        IWorkerPool workerPool = mock(IWorkerPool.class);
-        IWorkerPoolFactory workerPoolFactory = mock(IWorkerPoolFactory.class);
-        when(workerPoolFactory.create(anyInt(), anyMap(), anyInt())).thenReturn(workerPool);
-        return createHandler(workerPoolFactory, counterLog);
-    }
-
     protected Handler createHandler(IWorkerPoolFactory workerPoolFactory) {
-        return createHandler(workerPoolFactory, mock(File.class));
+        return createHandler(workerPoolFactory, mock(File.class), mock(File.class));
     }
 
-    protected Handler createHandler(IWorkerPoolFactory workerPoolFactory, File counterLog) {
-        return new Handler(workerPoolFactory, new Properties(), counterLog);
+    protected Handler createHandler(IWorkerPoolFactory workerPoolFactory, File counterLog, File counterExceptionsLog) {
+        return new Handler(workerPoolFactory, new Properties(), counterLog, counterExceptionsLog);
     }
 }

@@ -17,6 +17,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.text.DateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,19 +29,25 @@ public class Handler
 {
     private static final int MAX_REQUESTS = 100;
     private static final int NUMBER_OF_WORKERS = 4;
+    private static final Object COUNTER_LOCK = new Object();
+    private static final Object COUNTER_EXCEPTION_LOCK = new Object();
 
+    private final DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
     private final IWorkerPool workerPool;
     private final Map<String, CompileResponseDto> compileResponses = new HashMap<String, CompileResponseDto>();
     private final File counterLog;
-    private final Object counterLock = new Object();
+    private final File counterExceptionsLog;
+
     private final Properties emailProperties;
 
-    public Handler(IWorkerPoolFactory workerPoolFactory, Properties theEmailProperties, File theCounterLog) {
+    public Handler(IWorkerPoolFactory workerPoolFactory, Properties theEmailProperties,
+            File theCounterLog, File theCounterExceptionsLog) {
         workerPool = workerPoolFactory.create(MAX_REQUESTS, compileResponses, NUMBER_OF_WORKERS);
         workerPool.start();
 
         emailProperties = theEmailProperties;
         counterLog = theCounterLog;
+        counterExceptionsLog = theCounterExceptionsLog;
     }
 
     public void destroy() {
@@ -54,9 +61,9 @@ public class Handler
         if (values != null && values.length == 1) {
             String tsphp = values[0].trim();
             if (tsphp.length() != 0) {
-                String ticket = UUID.randomUUID().toString();
-                CountDownLatch latch = new CountDownLatch(1);
                 if (workerPool.numberOfPendingRequests() < MAX_REQUESTS) {
+                    String ticket = UUID.randomUUID().toString();
+                    CountDownLatch latch = new CountDownLatch(1);
                     execute(out, latch, new CompileRequestDto(ticket, tsphp, latch));
                 } else {
                     out.print("{\"error\": \"Too many requests at the moment. Please try it again in a moment.\"}");
@@ -89,12 +96,18 @@ public class Handler
 
     private void incrementCounter() {
         Integer counter = null;
-        synchronized (counterLock) {
+        synchronized (COUNTER_LOCK) {
             if (counterLog.exists()) {
-                counter = readCounterLog();
-                if (counter != null) {
-                    ++counter;
-                    writeCounterLog(counter);
+                String log = readCounterLog();
+                if (log != null) {
+                    try {
+                        counter = Integer.parseInt(log);
+                        ++counter;
+                        writeCounterLog(counter);
+                    } catch (NumberFormatException e) {
+                        writeCounterException(log);
+                        writeCounterLog(0);
+                    }
                 }
             }
         }
@@ -105,27 +118,25 @@ public class Handler
 
     }
 
-    private Integer readCounterLog() {
-        Integer counter = null;
+    private String readCounterLog() {
+        String log = null;
         BufferedReader reader = null;
         try {
             reader = new BufferedReader(
                     new InputStreamReader(new FileInputStream(counterLog), StandardCharsets.ISO_8859_1));
-            counter = Integer.parseInt(reader.readLine());
-        } catch (NumberFormatException e) {
-            //That's a pity but we don't care
+            log = reader.readLine();
+            reader.close();
         } catch (IOException e) {
             //That's a pity but we don't care
-        } finally {
             if (reader != null) {
                 try {
                     reader.close();
-                } catch (IOException e) {
+                } catch (IOException e2) {
                     //that's fine
                 }
             }
         }
-        return counter;
+        return log;
     }
 
     private void writeCounterLog(Integer counter) {
@@ -135,13 +146,33 @@ public class Handler
             writer.write(counter.toString());
             writer.close();
         } catch (IOException e) {
-            //That's a pity but we don't care
-        } finally {
             if (writer != null) {
                 try {
                     writer.close();
                 } catch (IOException e2) {
                     //that's fine
+                }
+            }
+        }
+    }
+
+    private void writeCounterException(String log) {
+        synchronized (COUNTER_EXCEPTION_LOCK) {
+            OutputStreamWriter writer = null;
+            try {
+                writer = new OutputStreamWriter(
+                        new FileOutputStream(counterExceptionsLog, true), StandardCharsets.ISO_8859_1);
+                writer.write(dateFormat.format(new Date()));
+                writer.append(log).append("\n");
+                writer.close();
+            } catch (IOException e) {
+                //That's a pity but we don't care
+                if (writer != null) {
+                    try {
+                        writer.close();
+                    } catch (IOException e2) {
+                        //that's fine
+                    }
                 }
             }
         }

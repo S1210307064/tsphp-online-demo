@@ -29,7 +29,7 @@ public class Main extends HttpServlet
             //use standard
             emailProperties.put("mail.smtp.host", "localhost");
             emailProperties.put("mail.smtp.timeout", "1000");
-            emailProperties.put("mail.smtp.connectionTimeout", "1000");
+            emailProperties.put("mail.smtp.connectiontimeout", "1000");
             if (reader != null) {
                 try {
                     reader.close();
@@ -44,7 +44,8 @@ public class Main extends HttpServlet
                         new File(realPath + "../requests.txt"),
                         new File(realPath + "../exceptions.txt")
                 ), emailProperties,
-                new File(realPath + "../counter.txt")
+                new File(realPath + "../counter.txt"),
+                new File(realPath + "../counterExceptions.txt")
         );
     }
 

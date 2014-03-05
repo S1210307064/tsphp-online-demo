@@ -4,6 +4,7 @@ import ch.tsphp.onlinedemo.Handler;
 import ch.tsphp.onlinedemo.WorkerPoolFactory;
 import org.junit.AfterClass;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -22,22 +23,31 @@ import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 public class HandlerTest
 {
     private static File counterLog = new File("unitTestDummyCounterLog.txt");
+    private static File counterExceptionsLog = new File("unitTestDummyCounterExceptionsLog.txt");
 
     @AfterClass
     public static void setUpClass() {
         if (counterLog.exists()) {
             counterLog.delete();
+        }
+        if (counterExceptionsLog.exists()) {
+            counterExceptionsLog.delete();
         }
     }
 
@@ -102,6 +112,7 @@ public class HandlerTest
         writer.write("0");
         writer.close();
 
+        //Act
         Handler handler = createHandler(counterLog);
         handler.doPost(request, response);
         handler.destroy();
@@ -113,12 +124,218 @@ public class HandlerTest
         assertThat(counter, is(1));
     }
 
+    @Test
+    public void doPost_EmailLimitReachedPropertiesEmpty_TryToSendEmailButStop() throws IOException {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        PrintWriter printWriter = mock(PrintWriter.class);
+        when(response.getWriter()).thenReturn(printWriter);
+        Properties emailProperties = mock(Properties.class);
+        when(emailProperties.isEmpty()).thenReturn(true);
+
+        OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
+        writer.write("99");
+        writer.close();
+
+        //Act
+        Handler handler = createHandler(emailProperties, counterLog, mock(File.class));
+        handler.doPost(request, response);
+        handler.destroy();
+
+        verify(emailProperties).isEmpty();
+        verifyNoMoreInteractions(emailProperties);
+    }
+
+    @Test
+    public void doPost_EmailLimitReached_SendEmail() throws IOException {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        PrintWriter printWriter = mock(PrintWriter.class);
+        when(response.getWriter()).thenReturn(printWriter);
+        Properties emailProperties = mock(Properties.class);
+        when(emailProperties.isEmpty()).thenReturn(false);
+        when(emailProperties.getProperty("mail.debug")).thenReturn("false");
+        when(emailProperties.getProperty("mail.smtp.host")).thenReturn("nonExistingHost");
+        when(emailProperties.getProperty("mail.smtp.timeout")).thenReturn("10");
+        when(emailProperties.getProperty("mail.smtp.connectiontimeout")).thenReturn("10");
+
+        OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
+        writer.write("99");
+        writer.close();
+
+        //Act
+        Handler handler = createHandler(emailProperties, counterLog, mock(File.class));
+        handler.doPost(request, response);
+        handler.destroy();
+
+        verify(emailProperties).isEmpty();
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(emailProperties, atLeast(4)).getProperty(captor.capture());
+        assertThat(captor.getAllValues(), hasItem("mail.debug"));
+        assertThat(captor.getAllValues(), hasItem("mail.smtp.host"));
+        assertThat(captor.getAllValues(), hasItem("mail.smtp.timeout"));
+        assertThat(captor.getAllValues(), hasItem("mail.smtp.connectiontimeout"));
+    }
+
+
+    @Test
+    public void doPost_NumberFormatExceptionDuringReadingCounterLog_DoesResetCounterWriteCounterException()
+            throws IOException {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        PrintWriter printWriter = mock(PrintWriter.class);
+        when(response.getWriter()).thenReturn(printWriter);
+
+        OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
+        writer.write("a");
+        writer.close();
+
+        writer = new OutputStreamWriter(new FileOutputStream(counterExceptionsLog), StandardCharsets.ISO_8859_1);
+        writer.write("");
+        writer.close();
+
+        //Act
+        Handler handler = createHandler(counterLog, counterExceptionsLog);
+        handler.doPost(request, response);
+        handler.destroy();
+
+        //Assert
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(counterLog), StandardCharsets.ISO_8859_1));
+        Integer counter = Integer.parseInt(reader.readLine());
+        reader.close();
+        assertThat(counter, is(0));
+
+        reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(counterExceptionsLog), StandardCharsets.ISO_8859_1));
+        String log = reader.readLine();
+        reader.close();
+        assertThat(log, not(""));
+    }
+
+    @Test
+    public void doPost_NumberFormatExceptionDuringReadingCounterLogAndIODuringCounterException_Continues()
+            throws IOException {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        PrintWriter printWriter = mock(PrintWriter.class);
+        final StringBuilder stringBuilder = new StringBuilder();
+        doAnswer(new Answer()
+        {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                stringBuilder.append(invocation.getArguments()[0]);
+                return false;
+            }
+        }).when(printWriter).print(anyString());
+        when(response.getWriter()).thenReturn(printWriter);
+
+        OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
+        writer.write("a");
+        writer.close();
+
+        File counterExceptions = mock(File.class);
+        when(counterExceptions.exists()).thenReturn(true);
+        when(counterExceptions.getPath()).thenReturn("./nonExistingFolder/nonExistingFile.txt");
+
+        //Act
+        Handler handler = createHandler(counterLog, counterExceptions);
+        handler.doPost(request, response);
+        handler.destroy();
+
+        assertThat(stringBuilder.toString(), containsString("\"php\":\"<?php\\nnamespace{\\n    $a;\\n}\\n?>\""));
+    }
+
+
+    @Test
+    public void doPost_ReadCounterLogIOException_DoesNotWriteAndStillContinues() throws IOException {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        PrintWriter printWriter = mock(PrintWriter.class);
+        final StringBuilder stringBuilder = new StringBuilder();
+        doAnswer(new Answer()
+        {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                stringBuilder.append(invocation.getArguments()[0]);
+                return false;
+            }
+        }).when(printWriter).print(anyString());
+        when(response.getWriter()).thenReturn(printWriter);
+        File counterLogFile = mock(File.class);
+        when(counterLogFile.exists()).thenReturn(true);
+        when(counterLogFile.getPath()).thenReturn("./nonExistingFolder/nonExistingFile.txt");
+
+        Handler handler = createHandler(counterLogFile);
+        handler.doPost(request, response);
+        handler.destroy();
+
+        verify(counterLogFile).exists();
+        verify(counterLogFile).getPath();
+        verifyNoMoreInteractions(counterLogFile);
+        assertThat(stringBuilder.toString(), not(""));
+    }
+
+
+    @Test
+    public void doPost_WriteCounterLogIOException_DoesNotWriteAndStillContinues() throws IOException {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        PrintWriter printWriter = mock(PrintWriter.class);
+        final StringBuilder stringBuilder = new StringBuilder();
+        doAnswer(new Answer()
+        {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                stringBuilder.append(invocation.getArguments()[0]);
+                return false;
+            }
+        }).when(printWriter).print(anyString());
+        when(response.getWriter()).thenReturn(printWriter);
+        File counterLogFile = mock(File.class);
+        when(counterLogFile.exists()).thenReturn(true);
+        when(counterLogFile.getPath()).thenReturn(counterLog.getName(), "./nonExistingFolder/nonExistingFile.txt");
+
+        OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
+        writer.write("0");
+        writer.close();
+
+        //Act
+        Handler handler = createHandler(counterLogFile);
+        handler.doPost(request, response);
+        handler.destroy();
+
+        verify(counterLogFile).exists();
+        verify(counterLogFile, times(2)).getPath();
+        assertThat(stringBuilder.toString(), not(""));
+    }
+
+
     protected Handler createHandler() {
         return createHandler(new File("NonExistingFile"));
     }
 
     protected Handler createHandler(File counterLog) {
+        return createHandler(counterLog, mock(File.class));
+    }
+
+    protected Handler createHandler(File counterLog, File counterExceptionsLog) {
+        return createHandler(new Properties(), counterLog, counterExceptionsLog);
+    }
+
+    protected Handler createHandler(Properties emailProperties, File counterLog, File counterExceptionsLog) {
         File file = new File("NonExistingFile");
-        return new Handler(new WorkerPoolFactory(file, file), new Properties(), counterLog);
+        return new Handler(new WorkerPoolFactory(file, file), emailProperties, counterLog, counterExceptionsLog);
     }
 }

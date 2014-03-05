@@ -106,6 +106,25 @@ public class WorkerTest
     }
 
     @Test
+    public void compile_IOExceptionDuringRequestLog_DoesNotStopCompilation() {
+        ICompiler compiler = mock(ICompiler.class);
+        //otherwise the compilerLatch.await will wait forever
+        doThrow(new RejectedExecutionException()).when(compiler).compile();
+        ICompilerInitialiser compilerInitialiser = mock(ICompilerInitialiser.class);
+        when(compilerInitialiser.create(any(ExecutorService.class))).thenReturn(compiler);
+        File requestsLog = mock(File.class);
+        when(requestsLog.exists()).thenReturn(true);
+        when(requestsLog.getPath()).thenReturn("./nonExistingFolder/nonExistingFile.txt");
+
+        IWorker worker = createWorker(compilerInitialiser, requestsLog, mock(File.class));
+        worker.compile(new CompileRequestDto("1", "", new CountDownLatch(1)));
+
+        verify(requestsLog).exists();
+        verify(requestsLog).getPath();
+        verify(compiler).compile();
+    }
+
+    @Test
     public void log_UnexpectedException_WriteToExceptionLog() {
         File exceptionsLog = mock(File.class);
         when(exceptionsLog.exists()).thenReturn(true);
@@ -162,10 +181,6 @@ public class WorkerTest
         ICompilerInitialiser compilerInitialiser = mock(ICompilerInitialiser.class);
         when(compilerInitialiser.create(any(ExecutorService.class))).thenReturn(compiler);
         return createWorker(compilerInitialiser, requestsLog, exceptionsLog);
-    }
-
-    protected IWorker createWorker(ICompilerInitialiser compilerInitialise) {
-        return createWorker(compilerInitialise, mock(File.class), mock(File.class));
     }
 
     protected IWorker createWorker(ICompilerInitialiser compilerInitialiser, File requestsLog, File exceptionsLog) {
