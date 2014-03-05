@@ -2,6 +2,7 @@ package ch.tsphp.onlinedemo.test.integration;
 
 import ch.tsphp.onlinedemo.Handler;
 import ch.tsphp.onlinedemo.WorkerPoolFactory;
+import org.junit.AfterClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -9,22 +10,37 @@ import org.mockito.stubbing.Answer;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class HandlerTest
 {
+    private static File counterLog = new File("unitTestDummyCounterLog.txt");
+
+    @AfterClass
+    public static void setUpClass() {
+        if (counterLog.exists()) {
+            counterLog.delete();
+        }
+    }
+
     @Test
     public void doPost_Success_ResponseIncludePhpCode() throws ServletException, IOException {
         HttpServletRequest request = mock(HttpServletRequest.class);
@@ -73,8 +89,36 @@ public class HandlerTest
         assertThat(stringBuilder.toString(), not(containsString("\"php\"")));
     }
 
+    @Test
+    public void doPost_Standard_WriteCounterLog() throws IOException {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        PrintWriter printWriter = mock(PrintWriter.class);
+        when(response.getWriter()).thenReturn(printWriter);
+
+        OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
+        writer.write("0");
+        writer.close();
+
+        Handler handler = createHandler(counterLog);
+        handler.doPost(request, response);
+        handler.destroy();
+
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(counterLog), StandardCharsets.ISO_8859_1));
+        Integer counter = Integer.parseInt(reader.readLine());
+        reader.close();
+        assertThat(counter, is(1));
+    }
+
     protected Handler createHandler() {
+        return createHandler(new File("NonExistingFile"));
+    }
+
+    protected Handler createHandler(File counterLog) {
         File file = new File("NonExistingFile");
-        return new Handler(new WorkerPoolFactory(file, file), new Properties(), file);
+        return new Handler(new WorkerPoolFactory(file, file), new Properties(), counterLog);
     }
 }

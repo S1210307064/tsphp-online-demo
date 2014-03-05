@@ -91,10 +91,10 @@ public class Handler
         Integer counter = null;
         synchronized (counterLock) {
             if (counterLog.exists()) {
-                counter = readCounter();
+                counter = readCounterLog();
                 if (counter != null) {
                     ++counter;
-                    writeCounter(counter);
+                    writeCounterLog(counter);
                 }
             }
         }
@@ -105,7 +105,7 @@ public class Handler
 
     }
 
-    private Integer readCounter() {
+    private Integer readCounterLog() {
         Integer counter = null;
         BufferedReader reader = null;
         try {
@@ -128,7 +128,7 @@ public class Handler
         return counter;
     }
 
-    private void writeCounter(Integer counter) {
+    private void writeCounterLog(Integer counter) {
         OutputStreamWriter writer = null;
         try {
             writer = new OutputStreamWriter(new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
