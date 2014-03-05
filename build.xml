@@ -7,7 +7,7 @@
     <import file="${basedir}/ant/copyCommon.xml" as="cp"/>
     <import file="${basedir}/ant/copyParserTypeCheckerTranslator.xml" as="cp"/>
 
-    <import file="${basedir}/ant/personal-settings.xml" as="p"/>
+    <import file="${basedir}/ant/personal-settings.xml" as="p" optional="true"/>
     <property file="${basedir}/ant/build.properties"/>
     <property name="rsrc" location="${basedir}/rsrc"/>
 
