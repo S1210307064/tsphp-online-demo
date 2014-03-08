@@ -22,7 +22,9 @@
         <war destfile="${target}/lib/${ant.project.name}.war" webxml="${rsrc}/web.xml">
             <fileset dir="${src.main}"/>
             <fileset dir="${rsrc}"/>
-            <lib dir="${lib}"/>
+            <lib dir="${lib}">
+                <exclude name="dev/"/>
+            </lib>
             <classes dir="${classes}"/>
         </war>
     </target>
