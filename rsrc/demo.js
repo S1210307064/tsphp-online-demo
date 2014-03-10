@@ -1,3 +1,21 @@
+/*
+ * This file is part of the TSPHP project published under the Apache License 2.0
+ * For the full copyright and license information, please have a look at LICENSE in the
+ * root folder or visit the project's website http://tsphp.ch/wiki/display/TSPHP/License
+ */
+
+/*
+ * some function are copied and the copyright belong to the corresponding author:
+ * - allowTabChar - copyright by Tim Down
+ * -- copied from http://stackoverflow.com/questions/4379535/tab-within-a-text-area-without-changing-focus-jquery
+ * -- changed tab to 4 spaces
+ * -- included check that "tab" is not included if shift is hold
+ * - setCursorPosition - copyright by HRJ
+ * -- copied from http://stackoverflow.com/questions/499126/jquery-set-cursor-position-in-text-area
+ * - getCursorPosition - copyright by Maximilian Ruta
+ * -- copied from http://stackoverflow.com/questions/1891444/how-can-i-get-cursor-position-in-a-textarea
+ */
+
 function compile(){
     var tsphpId='tsphp', phpId='php', consoleId='console';
     var tsphp = $('#' + tsphpId).val().trim();
@@ -28,14 +46,6 @@ function compile(){
     }
     return false;
 }
-
-// allowTabChar - copyright by Tim Down - copied from http://stackoverflow.com/questions/4379535/tab-within-a-text-area-without-changing-focus-jquery
-// changed tab to 4 spaces
-// only inserting "tab" if shift is not hold
-
-// setCursorPosition - copyright by HRJ - copied from http://stackoverflow.com/questions/499126/jquery-set-cursor-position-in-text-area
-
-// getCursorPosition - copyright by Maximilian Ruta - copied from http://stackoverflow.com/questions/1891444/how-can-i-get-cursor-position-in-a-textarea
 
 (function($) {
     function pasteIntoInput(el, text) {

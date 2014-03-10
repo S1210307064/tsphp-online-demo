@@ -3,6 +3,8 @@ nbproject/*
 .idea/*
 out/*
 *.iml
+/lib/dev/checkstyle/cfg/checkstyle.properties
+/lib/dev/pmd/cfg/pmd_tsphp.xml
+/lib/dev/QA.html
 /atlassian-ide-plugin.xml
-/servletlib
 /ant/personal-settings.xml
