@@ -1,6 +1,7 @@
 # Type-Safe PHP: Online Demo Application
 
-A simple servlet based online demo application which shows how TSPHP is translated to PHP.
+A simple servlet based online demo application which shows how TSPHP is translated to PHP. Visit the [online demo](http://tsphp.ch) to try it out yourself.
+
 The demo application is very similar to the [client-based demo application](http://tsphp.ch/jenkins/job/TSPHP_dev/lastSuccessfulBuild/) which can be found on the build server.
 
 Please visit the [project's website](http://tsphp.ch/) for more information on the project.
