@@ -59,6 +59,7 @@ public class Main extends HttpServlet
         handler.destroy();
     }
 
+    @SuppressWarnings("checkstyle:throwscount")
     public void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         handler.doPost(request, response);

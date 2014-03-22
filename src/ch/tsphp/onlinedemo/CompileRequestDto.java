@@ -8,6 +8,9 @@ package ch.tsphp.onlinedemo;
 
 import java.util.concurrent.CountDownLatch;
 
+/**
+ * Represents a compilation requests where the CountDownLatch is used as async completion indicator.
+ */
 public class CompileRequestDto
 {
     public String ticket;

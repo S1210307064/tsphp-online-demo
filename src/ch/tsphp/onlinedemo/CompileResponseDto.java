@@ -6,6 +6,9 @@
 
 package ch.tsphp.onlinedemo;
 
+/**
+ * Represents the result of a compilation.
+ */
 public class CompileResponseDto
 {
     public boolean hasFoundError = false;
