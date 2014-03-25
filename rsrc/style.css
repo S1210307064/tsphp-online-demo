@@ -4,49 +4,142 @@
  * root folder or visit the project's website http://tsphp.ch/wiki/display/TSPHP/License
  */
 
-body {
+form{
+    position:absolute;
+    left:15px;
+    right:15px;
+    top:0px;
+    bottom:10px;
+}
+body,table,td {
     font-family:Arial;
     font-size:12px;
+}
+table{
+    height:100%;
+    width:100%;
+}
+table,td{
+    padding:0;
     margin:0;
-    padding:10px;
 }
 h1{
-    font-size:2em;
+    font-size:18px;
     margin-bottom:5px;
+    background-image: url(logo.png);
+    background-repeat:no-repeat;
+    padding-left:40px;
+    padding-top: 9px;
+    padding-bottom: 10px;
 }
-
 textarea {
-    font-family: Consola, Courier;    
+    font-family: monospace, Courier !important;    
     width: 100%;
+    height:100%;
+    padding:0;
+    margin:0;
+    resize: none;
+    word-wrap:no-wrap;
+}
+.container{
+    overflow:hidden !important;
+}
+.linedwrap{
+    padding:0;
+    height:100%;
+    width:100%;
+}
+.linedtextarea textarea, 
+.linedwrap .codelines{
+    padding:0;
+}
+.linedwrap .lines{
+    margin-right:0px;
+    width:40px;
+    position:absolute;
+} 
+.linedtextarea{
+    margin-left:42px;
+    margin-right:2px;
     height:100%;
 }
 
-span.title {
+
+#notice{
+   margin-bottom:10px;
+}
+
+#moreInfoTeaser{
+    cursor:pointer;
+}
+
+#moreInfo{
+    display:none;
+}
+
+#feedback{
+    display:none;
+}
+.banner{
+    border: 1px solid #ccc;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+    color: #333;
+    margin: 10px 0 0 0;
+    padding: 10px 10px 10px 36px;
+    position: relative;
+    margin-bottom:5px;
+}
+
+.icon{
+    left: 10px;
+    position: absolute;
+    top: 10px;
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    border: none;
+    display: inline-block;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+    text-indent: -999em;
+    vertical-align: text-bottom;
+    width: 16px;
+    background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA1klEQVR42qWTUQqCQBCGfdKCuogu+qBeoot0kl7TBwU9S3QLyega9ZBh1L/wLyyDLGkLHzj/vzPM7o6eXLv9IQRH0IMnuVAL7b0y0QcVeIPPFPQasJ5KPlkbW5CDFcmpGf8MfLtATeMGEqObBCuOwJV6ZYsjxVhrsoDQEuojiLRQmLa9H5d1nEIHPYOMvrMD6hm9XgcDg2BGgYDesLTAlt596RFSep3jEp0FWnqlDtTMZ4ytZ1SuQZJLDlLtGuUGpNQ3/G7kKP/5M7nbLNnqCzxAR03J/V+HSh9XtOsatQAAAABJRU5ErkJggg==);
+}
+
+#moreInfo{
+    margin-bottom:10px;
+}
+
+.title {
     font-weight:bold;
     font-size:1.2em;
     position:absolute;
     color:#AAA;
     margin-top:5px;
-    right:15px;
+    right:20px;
     display:block;
+    z-index:0;
 }
 
-.notice{
-   margin-bottom:10px;
-}
 #sub{
     margin-bottom:10px;
 }
 
 #horizontal{
     border:1px solid #111;
-    height:85%;
-}
-
-#container{
     height:100%;
 }
 
-#php{
-    background-color:#EEE;
+#php,#console{
+    background-color:#EFEFEF;
+}
+
+#privacy{
+    color:#AAA;
+    font-size:0.9em;
+    margin-top:10px;
 }

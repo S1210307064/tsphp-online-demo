@@ -1,66 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
 <!--
   This file is part of the TSPHP project published under the Apache License 2.0
   For the full copyright and license information, please have a look at LICENSE in the
   root folder or visit the project's website http://tsphp.ch/wiki/display/TSPHP/License
   -->
 
-<html>
-<head><title>TSPHP Online Demo</title></head>
-<link rel="stylesheet" type="text/css" href="jquery.splitter.css">
-<link rel="stylesheet" type="text/css" href="style.css">
-<script type="text/javascript" src="jquery.js"></script>
-<script type="text/javascript" src="jquery.splitter-0.8.0.js"></script>
-<script type="text/javascript" src="demo.js"></script>
-<link rel="shortcut icon" href="favicon.ico">
-<body>
-<div class="intro">
-    <h1>TSPHP Online Demo</h1>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+    <title>Type-Safe PHP Online Demo</title>
+    <link rel="stylesheet" type="text/css" href="jquery.splitter.css"/>
+    <link rel="stylesheet" type="text/css" href="jquery-linedtextarea.css"/>
+    <link rel="stylesheet" type="text/css" href="style.css?v2"/>
 
-    <div class="notice">
-        Write your <b>TSPHP code</b> in the text area on the <b>left</b> hand side and <b>click</b> on <b>"compile"</b>
-        or <b>press CTRL+G</b> once you are done. Information
-        about the compilation process will be shown at the bottom (including syntax and semantic errors). If no error
-        was detected then the corresponding PHP code will be shown in the text box on the right hand side.
-    </div>
-</div>
-<form method="post" id="frm" onsubmit="return compile()">
-    <div id="sub"><input type="submit" value="compile"/></div>
-    <div id="horizontal">
-        <div id="vertical">
-            <div class="container">
-                <span class="title">TSPHP</span>
-                <textarea id="tsphp" name="tsphp"></textarea>
+    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript" src="jquery.splitter-0.8.0.js"></script>
+    <script type="text/javascript" src="jquery-linedtextarea.js"></script>
+    <script type="text/javascript" src="demo.js"></script>
+    <script type="text/javascript" src="examples.js"></script>
+
+    <link rel="shortcut icon" href="favicon.ico"/>
+</head>
+<body>
+<form method="post" id="frm" action="compile">
+    <table class="tbl">
+        <tr><td style="height:10%">
+            <h1>TSPHP Online Demo</h1>
+            <div id="notice">
+                Write your <b>TSPHP code</b> in the text area on the <b>left</b> hand side and <b>click</b> on <b>"compile"</b> * or <b>press CTRL+G</b> * once you are done. 
             </div>
-            <div class="container">
-                <span class="title">PHP</span>
-                <textarea id="php" name="php" readonly="readonly"></textarea>
+            <div class="banner">
+                <span class="icon">&nbsp;</span>
+                <div id="moreInfoTeaser">Click here for further information and help</div>
+                <div id="moreInfo">        
+                    <p>Once you have started the compilation process, information about it will be shown at the bottom including syntax and semantic errors. 
+                    If no error was detected then the corresponding PHP code will be shown in the text box on the right hand side.</p>
+                                        
+                    <p>Use the examples as a quick help if you are not yet familiar with the syntax enhancements 
+                    or have a look at the <a href="http://tsphp.ch/wiki/display/TSPHP/Language+Reference+Manual" title="TSPHP's Language Reference Manual">Language Reference Manual</a>.
+                    This online demo shall give you a better idea what TSPHP is all about. Please have a look at <a href="">Vision of TSPHP</a> for further information.
+                    Do you like the idea? Would be great if you <a href="http://tsphp.ch/wiki/display/TSPHP/Contribute+to+the+project" title="Contribute to TSPHP">contribute to the project</a> in some way.</p>
+                    
+                    <p>Be aware that TSPHP is still in an early stage. It does not support any built-in functions of PHP yet. Thus you can operate only on own classes and call own functions. 
+                    Have a look at <a href="https://tsphp.ch/wiki/display/TSPHP/Scope">Scope</a> to see what is not yet supported by TSPHP - this will change of course and <a href="http://tsphp.ch/wiki/display/TSPHP/Contribute+to+the+project" title="Contribute to TSPHP">with your help</a> even faster.
+                    </p>
+                </div>
+                </div>
             </div>
-        </div>
-        <div class="console">
-            <span class="title">Console</span>
-            <textarea id="console" name="console"></textarea>
-        </div>
-    </div>
+            <div id="feedback" class="banner">
+                <span class="icon">&nbsp;</span>
+                <div class="message-content">
+                    Thank you very much for your interest in TSPHP. 
+                    We would like to know what you found strange/surprising/hampering etc. about TSPHP in order to improve it. 
+                    Please take some time and write a feedback to <a href="mailto:rstoll@tutteli.ch">rstoll@tutteli.ch</a> or leave your feedback as post in <a href="https://groups.google.com/forum/#!forum/tsphp">TSPHP's google group</a>. 
+                    You can also help in other ways - basically <a href="http://tsphp.ch/wiki/display/TSPHP/Contribute+to+the+project" title="Contribute to TSPHP">every contribution is welcome</a>
+                </div>
+            </div>
+            <div id="sub">
+                <input type="submit" value="compile" style="margin-right:30px;"/> 
+                Show example about:
+                <select id="example">
+                    <option value="0">--</option>
+                    <option value="1">Variables - basics</option>
+                    <option value="2">Variables - wrong usage</option>
+                    <option value="3">Functions</option> 
+                    <option value="4">Classes</option> 
+                    <option value="5">Control structures - basics</option> 
+                    <option value="6">Control structures - wrong usage</option>
+                    <option value="7">Cast Assign Operator</option> 
+                    <option value="8">Cast Modifier</option>
+                    <option value="9">Nullable</option> 
+                    <option value="10">Falseable</option> 
+                </select>
+            </div>
+        </td></tr>
+        <tr><td style="height:85%">
+            <div id="horizontal">
+                <div id="vertical">
+                    <div class="container">
+                        <span class="title">TSPHP</span>
+                        <textarea id="tsphp" name="tsphp" rows="5" cols="5"></textarea>
+                    </div>
+                    <div class="container">
+                        <span class="title">PHP</span>
+                        <textarea id="php" name="php" rows="5" cols="5" readonly="readonly" wrap="off"></textarea>
+                    </div>
+                </div>
+                <div class="container">
+                    <span class="title">Console</span>
+                    <textarea id="console" name="console" rows="10" cols="10" readonly="readonly" wrap="off"></textarea>
+                </div>
+            </div>
+
+        </td></tr>
+        <tr><td style="height:5%">
+        <div id="privacy">* Your entered data might be stored anonymised and analysed later on in order to improve TSPHP</div>
+        </td></tr>
+    </table>
 </form>
 <script type="text/javascript">
+//<![CDATA[
 $(function($) {
-    $('#horizontal').split({orientation:'horizontal', limit:100, position:'70%'});
-    $('#vertical').split({orientation:'vertical', limit:150});
-    
-    $('#tsphp').keydown(function(event) {
-        var c = String.fromCharCode(event.which).toLowerCase();
-        if ((event.ctrlKey || event.metaKey) && c == 'g'){
-            compile();
-            event.preventDefault();
-            return false;
-        }
-        return true;
+    $('#horizontal').split({orientation:'horizontal', limit:100, position:'65%'});
+    $('#vertical').split({orientation:'vertical', limit:150, position:'55%'});
+   
+    var demo = tsphpDemo();    
+    $('#frm').submit(function(){
+        return demo.compile();
     });
-    $('#tsphp').allowTabChar();
+    $('#tsphp').linedtextarea();
     
+    $('#horizontal').bind('splitter.resize', function(e){
+        $('.lines').height( $('#tsphp').height() + 6 );
+    });
+    
+    examples();
 });
-
-
+//]]>
 </script>
 </body>
 </html>

@@ -16,36 +16,96 @@
  * -- copied from http://stackoverflow.com/questions/1891444/how-can-i-get-cursor-position-in-a-textarea
  */
 
-function compile(){
-    var tsphpId='tsphp', phpId='php', consoleId='console';
-    var tsphp = $('#' + tsphpId).val().trim();
-    if(tsphp){
-        $.ajax({
-          type: 'POST',
-          url: 'compile',
-          data: 'tsphp='+tsphp,
-          success: function(response){
-                if(response != null && (response.console != null || response.error != null)){
-                    if(response.error==null){
-                        $('#' +  phpId).val(response.php);
-                        $('#' + consoleId).val(response.console);
-                    }else{
-                        alert('Server reported an error:\n' + response.error);
-                    }
-                }else{
-                    alert('An unexpected error occurred, response from the server is corrupt. Please try again.')
+
+function tsphpDemo(options){
+    var settings = $.extend({
+        tsphpId: 'tsphp',
+        phpId: 'php',
+        consoleId: 'console',
+        moreInfoId: 'moreInfo',
+        moreInfoTeaserId: 'moreInfoTeaser',
+        feedbackId: 'feedback',
+        horizontalId: 'horizontal',
+        showFeedbackAfter: 3
+    }, options );   
+    
+    var showMoreInfo=true;
+    var compileCounter=0;
+
+    var functions = {
+        toggleMoreInfo : 
+            function(){
+                if(showMoreInfo){
+                    showMoreInfo=false;
+                    $('#' + settings.moreInfoTeaserId).html('<b>Click again to hide this information</b>');
+                    $('#' + settings.moreInfoId).show();
+                    $('#' + settings.horizontalId).split().refresh();
+                } else {
+                    showMoreInfo=true;
+                    $('#' + settings.moreInfoTeaserId).html('Click here for further information and help');
+                    $('#' + settings.moreInfoId).hide();
+                    $('#' + settings.horizontalId).split().refresh();
                 }
-          },
-          error: function(jqXHR, status, errorThrown) {
-              $('#' + consoleId).val('An unexpected error occurred: ' + errorThrown +', please try again. Response:'
-               + jqXHR.responseText);
-          }
-        });
-    }else {
-        alert('Please provide some code, otherwise it is quite boring ;)');
-    }
-    return false;
-}
+            },
+        compile: 
+            function(){
+                var tsphp = $('#' + settings.tsphpId).val().trim();
+                if(tsphp){
+                    $.ajax({
+                      type: 'POST',
+                      url: 'compile',
+                      data: 'tsphp='+encodeURIComponent(tsphp),
+                      success: function(response){
+                            if(response != null && (response.console != null || response.error != null)){
+                                if(response.error == null){
+                                    $('#' + settings.phpId).val(response.php);
+                                    $('#' + settings.consoleId).val(response.console);
+                                }else{
+                                    alert('Server reported an error:\n' + response.error);
+                                }
+                            }else{
+                                alert('An unexpected error occurred, response from the server is corrupt. Please try again.')
+                            }
+                      },
+                      error: function(jqXHR, status, errorThrown) {
+                          $('#' + settings.consoleId).val('An unexpected error occurred: ' + errorThrown +', please try again. Response:'
+                           + jqXHR.responseText);
+                      }
+                    });
+                }else {
+                    alert('Please provide some code, otherwise it is quite boring ;)');
+                }
+                return false;
+            },
+        
+    };
+    
+        
+    $('#' + settings.moreInfoTeaserId).click(function(){
+        functions.toggleMoreInfo();
+    });
+    
+    $('#' + settings.tsphpId).keydown(function(event){
+            var c = String.fromCharCode(event.which).toLowerCase();
+            if ((event.ctrlKey || event.metaKey) && c == 'g'){
+                functions.compile();
+                ++compileCounter;
+                if(compileCounter == settings.showFeedbackAfter){
+                    $('#' + settings.feedbackId).slideDown({duration:350, step: function(){
+                        $('#' + settings.horizontalId).split().refresh();
+                        }});
+                }
+                event.preventDefault();
+                return false;
+            }
+            return true;
+    });
+    
+    $('#' + settings.tsphpId).allowTabChar();
+    
+    
+    return functions;
+} 
 
 (function($) {
     function pasteIntoInput(el, text) {
