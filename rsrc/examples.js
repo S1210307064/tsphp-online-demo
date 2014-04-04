@@ -52,6 +52,10 @@ function examples(options){
         + '//Please have a look at the following page in the Language Reference\n'
         + '//Manual for more information about variables:\n'
         + '//http://tsphp.ch/wiki/display/TSPHP/Variables\n'
+        + '\n'
+        + '//And by now, you certainly thought it would be nice if this online demo\n'
+        + '//had syntax highlighting. Indeed! Would you like to help and integrate\n'
+        + '//it: http://tsphp.ch/jira/browse/TSPHP-727\n'
         ,
         //----------------------------------------------------------------------------
         //variables - wrong usage
