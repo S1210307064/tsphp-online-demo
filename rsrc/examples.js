@@ -13,7 +13,7 @@ function examples(options){
         + '//For an overview of the built-in types, have a look at:\n'
         + '//http://tsphp.ch/wiki/display/TSPHP/Types\n'
         + '\n'
-        + 'int $i; //declaration of $a with type int\n'
+        + 'int $i; //declaration of $i with type int\n'
         + '\n'
         + '//A variable needs to be initialised before its first usage. Either in\n'
         + '//the declaration itself (as with $f below) or later on (as with $i)\n'
