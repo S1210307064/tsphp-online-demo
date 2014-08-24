@@ -323,7 +323,6 @@ public class HandlerTest
 
         verify(counterLog).exists();
         verify(counterLog, times(2)).getPath();
-        verifyNoMoreInteractions(counterLog);
         assertThat(stringBuilder.toString(), not(""));
     }
 
