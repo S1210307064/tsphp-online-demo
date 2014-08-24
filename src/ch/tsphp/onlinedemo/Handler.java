@@ -40,7 +40,7 @@ public class Handler
 
     private final DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
     private final IWorkerPool workerPool;
-    private final Map<String, CompileResponseDto> compileResponses = new HashMap<String, CompileResponseDto>();
+    private final Map<String, CompileResponseDto> compileResponses = new HashMap<>();
     private final File counterLog;
     private final File counterExceptionsLog;
 
@@ -132,7 +132,7 @@ public class Handler
                     new InputStreamReader(new FileInputStream(counterLog), StandardCharsets.ISO_8859_1));
             log = reader.readLine();
             reader.close();
-        } catch (IOException e) {
+        } catch (IOException | SecurityException e) {
             //That's a pity but we don't care
             if (reader != null) {
                 try {
@@ -151,7 +151,7 @@ public class Handler
             writer = new OutputStreamWriter(new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
             writer.write(counter.toString());
             writer.close();
-        } catch (IOException e) {
+        } catch (IOException | SecurityException e) {
             if (writer != null) {
                 try {
                     writer.close();
@@ -171,7 +171,7 @@ public class Handler
                 writer.write(dateFormat.format(new Date()));
                 writer.append(log).append("\n");
                 writer.close();
-            } catch (IOException e) {
+            } catch (IOException | SecurityException e) {
                 //That's a pity but we don't care
                 if (writer != null) {
                     try {

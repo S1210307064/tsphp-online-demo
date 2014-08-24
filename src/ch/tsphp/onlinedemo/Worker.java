@@ -109,7 +109,7 @@ public class Worker implements IWorker
                             .append(txt)
                             .append("\n");
                     writer.close();
-                } catch (IOException e) {
+                } catch (IOException | SecurityException e) {
                     //that's bad but we don't care
                     if (writer != null) {
                         try {

@@ -8,8 +8,9 @@ package ch.tsphp.onlinedemo.test.integration;
 
 import ch.tsphp.onlinedemo.Handler;
 import ch.tsphp.onlinedemo.WorkerPoolFactory;
-import org.junit.AfterClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -37,6 +38,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -44,18 +46,9 @@ import static org.mockito.Mockito.when;
 
 public class HandlerTest
 {
-    private static File counterLog = new File("unitTestDummyCounterLog.txt");
-    private static File counterExceptionsLog = new File("unitTestDummyCounterExceptionsLog.txt");
 
-    @AfterClass
-    public static void setUpClass() {
-        if (counterLog.exists()) {
-            counterLog.delete();
-        }
-        if (counterExceptionsLog.exists()) {
-            counterExceptionsLog.delete();
-        }
-    }
+    @Rule
+    public TemporaryFolder folder = new TemporaryFolder();
 
     @Test
     public void doPost_Success_ResponseIncludePhpCode() throws ServletException, IOException {
@@ -112,6 +105,7 @@ public class HandlerTest
         HttpServletResponse response = mock(HttpServletResponse.class);
         PrintWriter printWriter = mock(PrintWriter.class);
         when(response.getWriter()).thenReturn(printWriter);
+        File counterLog = folder.newFile("unitTestDummyCounterLog.txt");
 
         OutputStreamWriter writer = new OutputStreamWriter(
                 new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
@@ -139,6 +133,7 @@ public class HandlerTest
         when(response.getWriter()).thenReturn(printWriter);
         Properties emailProperties = mock(Properties.class);
         when(emailProperties.isEmpty()).thenReturn(true);
+        File counterLog = folder.newFile("unitTestDummyCounterLog.txt");
 
         OutputStreamWriter writer = new OutputStreamWriter(
                 new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
@@ -167,6 +162,7 @@ public class HandlerTest
         when(emailProperties.getProperty("mail.smtp.host")).thenReturn("nonExistingHost");
         when(emailProperties.getProperty("mail.smtp.timeout")).thenReturn("10");
         when(emailProperties.getProperty("mail.smtp.connectiontimeout")).thenReturn("10");
+        File counterLog = folder.newFile("unitTestDummyCounterLog.txt");
 
         OutputStreamWriter writer = new OutputStreamWriter(
                 new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
@@ -196,6 +192,8 @@ public class HandlerTest
         HttpServletResponse response = mock(HttpServletResponse.class);
         PrintWriter printWriter = mock(PrintWriter.class);
         when(response.getWriter()).thenReturn(printWriter);
+        File counterLog = folder.newFile("unitTestDummyCounterLog.txt");
+        File counterExceptionsLog = folder.newFile("unitTestDummyCounterExceptionsLog.txt");
 
         OutputStreamWriter writer = new OutputStreamWriter(
                 new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
@@ -226,7 +224,8 @@ public class HandlerTest
     }
 
     @Test
-    public void doPost_NumberFormatExceptionDuringReadingCounterLogAndIODuringCounterException_Continues()
+    public void
+    doPost_NumberFormatExceptionDuringReadingCounterLogAndSecurityExceptionDuringCounterException_Continues()
             throws IOException {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
@@ -242,6 +241,7 @@ public class HandlerTest
             }
         }).when(printWriter).print(anyString());
         when(response.getWriter()).thenReturn(printWriter);
+        File counterLog = folder.newFile("unitTestDummyCounterLog.txt");
 
         OutputStreamWriter writer = new OutputStreamWriter(
                 new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
@@ -250,7 +250,7 @@ public class HandlerTest
 
         File counterExceptions = mock(File.class);
         when(counterExceptions.exists()).thenReturn(true);
-        when(counterExceptions.getPath()).thenReturn("./nonExistingFolder/nonExistingFile.txt");
+        when(counterExceptions.getPath()).thenThrow(new SecurityException());
 
         //Act
         Handler handler = createHandler(counterLog, counterExceptions);
@@ -260,9 +260,8 @@ public class HandlerTest
         assertThat(stringBuilder.toString(), containsString("\"php\":\"<?php\\nnamespace{\\n    $a;\\n}\\n?>\""));
     }
 
-
     @Test
-    public void doPost_ReadCounterLogIOException_DoesNotWriteAndStillContinues() throws IOException {
+    public void doPost_ReadCounterLogSecurityExceptionOccurs_DoesNotWriteAndStillContinues() throws IOException {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
         HttpServletResponse response = mock(HttpServletResponse.class);
@@ -279,7 +278,7 @@ public class HandlerTest
         when(response.getWriter()).thenReturn(printWriter);
         File counterLogFile = mock(File.class);
         when(counterLogFile.exists()).thenReturn(true);
-        when(counterLogFile.getPath()).thenReturn("./nonExistingFolder/nonExistingFile.txt");
+        when(counterLogFile.getPath()).thenThrow(new SecurityException());
 
         Handler handler = createHandler(counterLogFile);
         handler.doPost(request, response);
@@ -291,9 +290,8 @@ public class HandlerTest
         assertThat(stringBuilder.toString(), not(""));
     }
 
-
     @Test
-    public void doPost_WriteCounterLogIOException_DoesNotWriteAndStillContinues() throws IOException {
+    public void doPost_WriteCounterLogSecurityExceptionOccurs_DoesNotWriteAndStillContinues() throws IOException {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getParameterValues("tsphp")).thenReturn(new String[]{"int $a;"});
         HttpServletResponse response = mock(HttpServletResponse.class);
@@ -308,25 +306,26 @@ public class HandlerTest
             }
         }).when(printWriter).print(anyString());
         when(response.getWriter()).thenReturn(printWriter);
-        File counterLogFile = mock(File.class);
-        when(counterLogFile.exists()).thenReturn(true);
-        when(counterLogFile.getPath()).thenReturn(counterLog.getName(), "./nonExistingFolder/nonExistingFile.txt");
+        File counterLog = spy(folder.newFile("unitTestDummyCounterLog.txt"));
+        when(counterLog.getPath()).thenCallRealMethod().thenThrow(new SecurityException());
 
         OutputStreamWriter writer = new OutputStreamWriter(
                 new FileOutputStream(counterLog), StandardCharsets.ISO_8859_1);
         writer.write("0");
         writer.close();
 
+
         //Act
-        Handler handler = createHandler(counterLogFile);
+        Handler handler = createHandler(counterLog);
         handler.doPost(request, response);
         handler.destroy();
 
-        verify(counterLogFile).exists();
-        verify(counterLogFile, times(2)).getPath();
+
+        verify(counterLog).exists();
+        verify(counterLog, times(2)).getPath();
+        verifyNoMoreInteractions(counterLog);
         assertThat(stringBuilder.toString(), not(""));
     }
-
 
     protected Handler createHandler() {
         return createHandler(new File("NonExistingFile"));

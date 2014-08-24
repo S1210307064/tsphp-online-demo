@@ -112,15 +112,16 @@ public class WorkerTest
     }
 
     @Test
-    public void compile_IOExceptionDuringRequestLog_DoesNotStopCompilation() {
+    public void compile_ExceptionDuringRequestLog_DoesNotStopCompilation() {
         ICompiler compiler = mock(ICompiler.class);
         //otherwise the compilerLatch.await will wait forever
         doThrow(new RejectedExecutionException()).when(compiler).compile();
         ICompilerInitialiser compilerInitialiser = mock(ICompilerInitialiser.class);
         when(compilerInitialiser.create(any(ExecutorService.class))).thenReturn(compiler);
+
         File requestsLog = mock(File.class);
         when(requestsLog.exists()).thenReturn(true);
-        when(requestsLog.getPath()).thenReturn("./nonExistingFolder/nonExistingFile.txt");
+        when(requestsLog.getPath()).thenThrow(new SecurityException());
 
         IWorker worker = createWorker(compilerInitialiser, requestsLog, mock(File.class));
         worker.compile(new CompileRequestDto("1", "", new CountDownLatch(1)));
