@@ -337,7 +337,7 @@ function examples(options){
         + '//cast to bool. Yet the cast assign operator takes off even more writing\n'
         + '//in situation as the following:\n'
         + '\n'
-        + 'int $i=() 1.2 + 2 * 4 / 2.3;\n'
+        + 'int $i =() 1.2 + 2 * 4 / 2.3;\n'
         + '\n'
         + '//Of course, just a silly example but you can see from the output that\n'
         + '//you would need to write additional parentheses which is cumbersome and\n'
