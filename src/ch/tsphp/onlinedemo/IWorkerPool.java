@@ -6,6 +6,9 @@
 
 package ch.tsphp.onlinedemo;
 
+/**
+ * Responsible to buffer incoming compile requests and delegate them to IWorker's.
+ */
 public interface IWorkerPool
 {
     void start();

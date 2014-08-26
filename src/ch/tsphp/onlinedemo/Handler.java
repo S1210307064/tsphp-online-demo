@@ -31,6 +31,11 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
+/**
+ * Handles incoming requests.
+ * <p/>
+ * It delegates the requests to workers, put it into the worker pool respectively, if they are valid.
+ */
 public class Handler
 {
     private static final int MAX_REQUESTS = 100;

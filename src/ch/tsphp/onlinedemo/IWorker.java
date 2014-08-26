@@ -9,6 +9,11 @@ package ch.tsphp.onlinedemo;
 import ch.tsphp.common.ICompilerListener;
 import ch.tsphp.common.IErrorLogger;
 
+/**
+ * Responsible to work off incoming compile requests.
+ * <p/>
+ * That means it uses the TSPHP compiler and stores the result somehow.
+ */
 public interface IWorker extends ICompilerListener, IErrorLogger
 {
     void shutdown();

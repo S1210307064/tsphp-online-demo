@@ -26,6 +26,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 
+/**
+ * Uses the TSPHP compiler to work off incoming compile requests and stores them in the compile responses map.
+ * <p/>
+ * The compile response map is passed in by the constructor and should be examined by a third party after the
+ * compilation process has finished. Use the methods of the implemented interface ICompilerListener to know in which
+ * state the compilation process is.
+ */
 public class Worker implements IWorker
 {
     private static final Object LOG_LOCK = new Object();
