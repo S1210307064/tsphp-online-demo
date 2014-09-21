@@ -6,9 +6,6 @@
 
 <project name="tsphp-online-demo" basedir="./" default="build">
 
-    <!-- additional jar for libset, should not be deployed though -->
-    <property name="libset.addon" location="${basedir}/lib/dev/servlet-api.jar"/>
-
     <import file="${basedir}/ant/build-common.xml" as="common"/>
     <import file="${basedir}/ant/copyCommon.xml" as="cp"/>
     <import file="${basedir}/ant/copyParserTypeCheckerTranslator.xml" as="cp"/>
@@ -19,6 +16,13 @@
 
     <property name="compiler.jar" location="${basedir}/../tsphp/build/lib"/>
 
+	<!-- ================================================================== -->
+    <!-- Specialised PATH: libset includes servlet-api.jar                  -->
+    <!-- ================================================================== -->
+    <path id="libset">
+        <fileset dir="${lib}" includes="*.jar"/>
+        <fileset dir="${libdev}" includes="servlet-api.jar"/>
+    </path>
 
     <!-- ================================================================== -->
     <!-- Specialised Target: jar - create a war instead of a jar-->
